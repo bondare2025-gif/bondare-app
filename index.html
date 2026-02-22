@@ -3,65 +3,56 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BONDARE管理</title>
-
-<link rel="manifest" href="manifest.json">
+<title>BONDARE管理アプリ</title>
 
 <style>
 body{
   margin:0;
-  font-family:-apple-system,BlinkMacSystemFont;
+  font-family:-apple-system, BlinkMacSystemFont;
   background:#111;
   color:white;
 }
 header{
   padding:15px;
   text-align:center;
+  font-size:20px;
   font-weight:bold;
   background:#000;
 }
-nav{
-  display:flex;
-  justify-content:space-around;
-  background:#1a1a1a;
-}
-nav button{
-  flex:1;
-  padding:15px;
-  background:#1a1a1a;
-  border:none;
-  color:white;
-  font-size:14px;
-}
-section{
-  display:none;
-  padding:15px;
-}
-section.active{
-  display:block;
+.container{
+  padding:20px;
 }
 input{
   width:100%;
-  padding:10px;
-  margin:5px 0;
-  background:#222;
-  border:1px solid #333;
-  color:white;
-}
-button.main{
   padding:12px;
-  width:100%;
-  background:#0a84ff;
+  margin-top:10px;
+  background:#222;
   border:none;
   color:white;
-  font-weight:bold;
-  margin-top:10px;
+  font-size:16px;
 }
-.card{
-  background:#1c1c1e;
+button{
+  width:100%;
+  padding:15px;
+  margin-top:15px;
+  background:#007aff;
+  border:none;
+  color:white;
+  font-size:16px;
+}
+.list{
+  margin-top:20px;
+}
+.item{
+  background:#222;
   padding:10px;
-  margin:10px 0;
-  border-radius:10px;
+  margin-top:10px;
+  border-radius:8px;
+}
+.total{
+  margin-top:20px;
+  font-size:18px;
+  font-weight:bold;
 }
 </style>
 </head>
@@ -70,98 +61,49 @@ button.main{
 
 <header>BONDARE管理アプリ</header>
 
-<nav>
-<button onclick="show('sales')">売上</button>
-<button onclick="show('drivers')">ドライバー</button>
-<button onclick="show('profit')">利益</button>
-</nav>
+<div class="container">
 
-<section id="sales" class="active">
-<h3>売上入力</h3>
-<input type="number" id="salesInput" placeholder="売上金額入力">
-<button class="main" onclick="saveSales()">保存</button>
-<div id="salesList"></div>
-</section>
+<h2>売上入力</h2>
 
-<section id="drivers">
-<h3>ドライバー追加</h3>
-<input id="driverName" placeholder="名前">
-<input id="driverRate" placeholder="単価">
-<input id="driverLease" placeholder="リース代">
-<button class="main" onclick="addDriver()">追加</button>
-<div id="driverList"></div>
-</section>
+<input type="number" id="amount" placeholder="売上金額入力">
 
-<section id="profit">
-<h3>利益確認</h3>
-<div id="profitView"></div>
-</section>
+<button onclick="saveData()">保存</button>
+
+<div class="total" id="total"></div>
+
+<div class="list" id="list"></div>
+
+</div>
 
 <script>
+function saveData(){
+  const amount = document.getElementById("amount").value;
+  if(amount === "") return;
 
-let data = JSON.parse(localStorage.getItem("bondareData")) || {
-  sales:[],
-  drivers:[{name:"宮内",rate:194,lease:0}]
-};
-
-function save(){
-  localStorage.setItem("bondareData",JSON.stringify(data));
-}
-
-function show(id){
-  document.querySelectorAll("section").forEach(s=>s.classList.remove("active"));
-  document.getElementById(id).classList.add("active");
-}
-
-function saveSales(){
-  let val = document.getElementById("salesInput").value;
-  if(!val)return;
-  data.sales.push(Number(val));
-  document.getElementById("salesInput").value="";
-  save();
-  render();
-}
-
-function addDriver(){
-  let name=document.getElementById("driverName").value;
-  let rate=document.getElementById("driverRate").value;
-  let lease=document.getElementById("driverLease").value;
-  if(!name)return;
-  data.drivers.push({name,rate:Number(rate),lease:Number(lease)});
-  document.getElementById("driverName").value="";
-  document.getElementById("driverRate").value="";
-  document.getElementById("driverLease").value="";
-  save();
-  render();
-}
-
-function render(){
-  let sList="";
-  data.sales.forEach(s=>sList+=`<div class="card">¥${s.toLocaleString()}</div>`);
-  document.getElementById("salesList").innerHTML=sList;
-
-  let dList="";
-  data.drivers.forEach(d=>dList+=`<div class="card">${d.name} | 単価:${d.rate} | リース:${d.lease}</div>`);
-  document.getElementById("driverList").innerHTML=dList;
-
-  let total=data.sales.reduce((a,b)=>a+b,0);
-  let leaseTotal=data.drivers.reduce((a,b)=>a+b.lease,0);
-  let profit=total-leaseTotal;
-  document.getElementById("profitView").innerHTML=
-    `<div class="card">総売上 ¥${total.toLocaleString()}</div>
-     <div class="card">リース合計 ¥${leaseTotal.toLocaleString()}</div>
-     <div class="card">利益 ¥${profit.toLocaleString()}</div>`;
-}
-
-render();
-// 合計自動計算
-function calculateTotal(){
   let data = JSON.parse(localStorage.getItem("sales")) || [];
-  let total = data.reduce((sum, value) => sum + Number(value), 0);
-  document.getElementById("total").innerText = "合計: ¥" + total;
+  data.push(Number(amount));
+  localStorage.setItem("sales", JSON.stringify(data));
+  document.getElementById("amount").value = "";
+  loadData();
 }
+
+function loadData(){
+  let data = JSON.parse(localStorage.getItem("sales")) || [];
+  let list = document.getElementById("list");
+  let total = 0;
+
+  list.innerHTML = "";
+
+  data.forEach(item=>{
+    total += Number(item);
+    list.innerHTML += "<div class='item'>¥"+item.toLocaleString()+"</div>";
+  });
+
+  document.getElementById("total").innerText = "合計: ¥" + total.toLocaleString();
+}
+
+loadData();
 </script>
 
 </body>
 </html>
-<button onclick="saveData()">保存</button>
