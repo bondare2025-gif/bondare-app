@@ -155,7 +155,13 @@ function render(){
 
 render();
 
-</script>
+</script>// 合計自動計算
+function calculateTotal(){
+  let data = JSON.parse(localStorage.getItem("sales")) || [];
+  let total = data.reduce((sum, value) => sum + Number(value), 0);
+  document.getElementById("total").innerText = "合計: ¥" + total;
+}
 
 </body>
 </html>
+<div id="total" style="margin-top:20px;font-size:18px;"></div>
