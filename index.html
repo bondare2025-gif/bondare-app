@@ -3,160 +3,292 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BONDARE管理アプリ</title>
-
+<title>BONDARE管理 完全版</title>
 <style>
-body{margin:0;font-family:-apple-system;background:#111;color:white;}
-header{padding:15px;text-align:center;font-size:20px;font-weight:bold;background:#000;}
-.container{padding:15px;}
-select,input{width:100%;padding:10px;margin-top:8px;background:#222;border:none;color:white;}
-button{width:100%;padding:12px;margin-top:10px;background:#007aff;border:none;color:white;}
-.section{margin-top:25px;}
-.card{background:#222;padding:10px;margin-top:8px;border-radius:8px;}
-.total{margin-top:15px;font-weight:bold;}
-.small{font-size:14px;color:#aaa;}
+body{margin:0;font-family:-apple-system;background:#111;color:#fff}
+header{background:#000;padding:15px;text-align:center;font-weight:bold}
+.nav{display:flex;flex-wrap:wrap}
+.nav button{flex:1 1 33%;background:#222;color:#fff;border:none;padding:12px}
+.container{padding:15px}
+input,select{width:100%;padding:10px;margin-top:8px;background:#222;border:none;color:#fff}
+button.action{background:#007aff;color:#fff;border:none;padding:12px;margin-top:10px;width:100%}
+.card{background:#1c1c1e;padding:10px;margin-top:8px;border-radius:8px}
+.total{margin-top:10px;font-weight:bold}
+.hidden{display:none}
+.green{color:#34c759}
+.red{color:#ff3b30}
+.warn{color:#ff9500}
+.small{font-size:12px;color:#aaa}
+img{max-width:100%;margin-top:5px;border-radius:6px}
 </style>
 </head>
-
 <body>
 
-<header>BONDARE管理アプリ</header>
+<header>BONDARE管理アプリ 完全版</header>
+
+<div class="nav">
+<button onclick="show('sales')">売上</button>
+<button onclick="show('drivers')">ドライバー</button>
+<button onclick="show('vehicle')">車両</button>
+<button onclick="show('expense')">経費</button>
+<button onclick="show('backup')">バックアップ</button>
+</div>
 
 <div class="container">
 
+<!-- 売上 -->
+<div id="sales">
 <h3>月選択</h3>
 <select id="month"></select>
 
-<div class="section">
+<h3>売上入力</h3>
+<select id="driverSelect"></select>
+<input type="number" id="qty" placeholder="個数">
+<button class="action" onclick="addSale()">保存</button>
+
+<div id="salesList"></div>
+<div id="calc"></div>
+
+<h3>明細生成</h3>
+<select id="statementDriver"></select>
+<button class="action" onclick="generateStatement()">明細表示</button>
+<div id="statement"></div>
+</div>
+
+<!-- ドライバー -->
+<div id="drivers" class="hidden">
 <h3>ドライバー追加</h3>
-<input id="driverName" placeholder="名前">
-<input type="number" id="driverRate" placeholder="単価">
-<input type="number" id="driverLease" placeholder="リース代">
-<label class="small"><input type="checkbox" id="royaltyCheck"> ロイヤリティ対象（10%）</label>
-<button onclick="addDriver()">追加</button>
+<input id="dName" placeholder="名前">
+<input type="number" id="dRate" placeholder="単価">
+<input type="number" id="dLease" placeholder="リース代">
+<label><input type="checkbox" id="dRoyalty"> ロイヤリティ10%</label>
+<button class="action" onclick="addDriver()">追加</button>
 <div id="driverList"></div>
 </div>
 
-<div class="section">
-<h3>売上入力</h3>
-<select id="driverSelect"></select>
-<input type="number" id="amount" placeholder="売上金額">
-<button onclick="saveSale()">保存</button>
-<div id="saleList"></div>
+<!-- 車両 -->
+<div id="vehicle" class="hidden">
+<h3>車両登録</h3>
+<select id="vDriver"></select>
+<input id="vName" placeholder="車種">
+<input id="vNumber" placeholder="ナンバー">
+<input type="date" id="vInspection">
+<input type="number" id="vMileage" placeholder="走行距離">
+<input type="file" id="vImage">
+<button class="action" onclick="addVehicle()">登録</button>
+<div id="vehicleList"></div>
 </div>
 
-<div class="section">
-<h3>計算結果</h3>
-<div id="result"></div>
+<!-- 経費 -->
+<div id="expense" class="hidden">
+<h3>経費追加</h3>
+<input id="eCategory" placeholder="カテゴリー">
+<input type="number" id="eAmount" placeholder="金額">
+<button class="action" onclick="addExpense()">追加</button>
+<div id="expenseList"></div>
+</div>
+
+<!-- バックアップ -->
+<div id="backup" class="hidden">
+<h3>バックアップ</h3>
+<button class="action" onclick="exportData()">データ書き出し</button>
+<input type="file" id="importFile">
+<button class="action" onclick="importData()">復元</button>
+<div id="backupArea" class="small"></div>
 </div>
 
 </div>
 
 <script>
-
-let data = JSON.parse(localStorage.getItem("bondare")) || {
-  drivers: [
-    {name:"宮内", rate:194, lease:0, royalty:false}
-  ],
-  sales:{}
+let db = JSON.parse(localStorage.getItem("bondareFINAL")) || {
+drivers:[{name:"宮内",rate:194,lease:0,royalty:false}],
+sales:{},
+vehicles:[],
+expenses:[]
 };
 
-function saveStorage(){
-  localStorage.setItem("bondare", JSON.stringify(data));
+function save(){localStorage.setItem("bondareFINAL",JSON.stringify(db));}
+
+function show(id){
+["sales","drivers","vehicle","expense","backup"].forEach(p=>{
+document.getElementById(p).classList.add("hidden");
+});
+document.getElementById(id).classList.remove("hidden");
 }
 
 function initMonth(){
-  const select = document.getElementById("month");
-  const now = new Date();
-  const year = now.getFullYear();
-  for(let i=1;i<=12;i++){
-    const option = document.createElement("option");
-    option.value = year+"-"+i;
-    option.text = year+"年"+i+"月";
-    select.appendChild(option);
-  }
-  select.addEventListener("change", render);
+let m=document.getElementById("month");
+let y=new Date().getFullYear();
+for(let i=1;i<=12;i++){
+let o=document.createElement("option");
+o.value=y+"-"+i;
+o.text=y+"年"+i+"月";
+m.appendChild(o);
+}
+m.addEventListener("change",render);
 }
 
 function addDriver(){
-  const name=document.getElementById("driverName").value;
-  const rate=Number(document.getElementById("driverRate").value);
-  const lease=Number(document.getElementById("driverLease").value);
-  const royalty=document.getElementById("royaltyCheck").checked;
-  if(!name)return;
-  data.drivers.push({name,rate,lease,royalty});
-  saveStorage();
-  render();
+db.drivers.push({
+name:dName.value,
+rate:Number(dRate.value),
+lease:Number(dLease.value),
+royalty:dRoyalty.checked
+});
+save();render();
 }
 
-function saveSale(){
-  const month=document.getElementById("month").value;
-  const driver=document.getElementById("driverSelect").value;
-  const amount=Number(document.getElementById("amount").value);
-  if(!amount)return;
+function deleteDriver(name){
+db.drivers=db.drivers.filter(d=>d.name!==name);
+save();render();
+}
 
-  if(!data.sales[month]) data.sales[month]=[];
-  data.sales[month].push({driver,amount});
-  saveStorage();
-  document.getElementById("amount").value="";
-  render();
+function addSale(){
+let m=month.value;
+if(!db.sales[m]) db.sales[m]=[];
+db.sales[m].push({driver:driverSelect.value,qty:Number(qty.value)});
+qty.value="";
+save();render();
+}
+
+function addExpense(){
+db.expenses.push({category:eCategory.value,amount:Number(eAmount.value)});
+save();render();
+}
+
+function deleteExpense(i){
+db.expenses.splice(i,1);
+save();render();
+}
+
+function addVehicle(){
+let file=vImage.files[0];
+if(!file)return;
+let reader=new FileReader();
+reader.onload=function(e){
+db.vehicles.push({
+driver:vDriver.value,
+name:vName.value,
+number:vNumber.value,
+inspection:vInspection.value,
+mileage:Number(vMileage.value),
+image:e.target.result
+});
+save();render();
+};
+reader.readAsDataURL(file);
+}
+
+function deleteVehicle(i){
+db.vehicles.splice(i,1);
+save();render();
 }
 
 function render(){
-  const month=document.getElementById("month").value;
-  const driverList=document.getElementById("driverList");
-  const driverSelect=document.getElementById("driverSelect");
-  const saleList=document.getElementById("saleList");
-  const result=document.getElementById("result");
+driverList.innerHTML="";
+driverSelect.innerHTML="";
+statementDriver.innerHTML="";
+vDriver.innerHTML="";
 
-  driverList.innerHTML="";
-  driverSelect.innerHTML="";
-  data.drivers.forEach(d=>{
-    driverList.innerHTML+=`<div class="card">${d.name} 単価:${d.rate} リース:${d.lease} ${d.royalty?"(10%対象)":""}</div>`;
-    driverSelect.innerHTML+=`<option value="${d.name}">${d.name}</option>`;
-  });
+db.drivers.forEach(d=>{
+driverList.innerHTML+=`<div class="card">${d.name} <button onclick="deleteDriver('${d.name}')">削除</button></div>`;
+driverSelect.innerHTML+=`<option>${d.name}</option>`;
+statementDriver.innerHTML+=`<option>${d.name}</option>`;
+vDriver.innerHTML+=`<option>${d.name}</option>`;
+});
 
-  let monthSales=data.sales[month]||[];
-  saleList.innerHTML="";
-  let companyTotal=0;
-  let driverTotals={};
+expenseList.innerHTML="";
+db.expenses.forEach((e,i)=>{
+expenseList.innerHTML+=`<div class="card">${e.category} ¥${e.amount} <button onclick="deleteExpense(${i})">削除</button></div>`;
+});
 
-  monthSales.forEach(s=>{
-    saleList.innerHTML+=`<div class="card">${s.driver} ¥${s.amount.toLocaleString()}</div>`;
-    companyTotal+=s.amount;
-    if(!driverTotals[s.driver]) driverTotals[s.driver]=0;
-    driverTotals[s.driver]+=s.amount;
-  });
+vehicleList.innerHTML="";
+db.vehicles.forEach((v,i)=>{
+let warn="";
+if(v.inspection){
+let diff=(new Date(v.inspection)-new Date())/(1000*60*60*24);
+if(diff<30) warn="<div class='warn'>⚠ 車検30日以内</div>";
+}
+vehicleList.innerHTML+=`
+<div class="card">
+${v.driver} ${v.name} ${v.number}
+${warn}
+<img src="${v.image}">
+<button onclick="deleteVehicle(${i})">削除</button>
+</div>`;
+});
 
-  let resultHTML="";
-  let totalDriverPay=0;
+let m=month.value;
+let list=db.sales[m]||[];
+salesList.innerHTML="";
+let gross=0;
+let driverTotal={};
 
-  data.drivers.forEach(d=>{
-    let gross=driverTotals[d.name]||0;
-    let royalty=d.royalty? gross*0.10 : 0;
-    let pay=gross - royalty - d.lease;
-    totalDriverPay+=pay;
-    resultHTML+=`<div class="card">
-    ${d.name}<br>
-    売上: ¥${gross.toLocaleString()}<br>
-    ロイヤリティ: ¥${royalty.toLocaleString()}<br>
-    リース: ¥${d.lease.toLocaleString()}<br>
-    支払額: ¥${pay.toLocaleString()}
-    </div>`;
-  });
+list.forEach(s=>{
+let d=db.drivers.find(x=>x.name===s.driver);
+let amount=s.qty*d.rate;
+gross+=amount;
+if(!driverTotal[s.driver]) driverTotal[s.driver]=0;
+driverTotal[s.driver]+=amount;
+salesList.innerHTML+=`<div class="card">${s.driver} ¥${amount}</div>`;
+});
 
-  let profit=companyTotal-totalDriverPay;
+let expenseTotal=db.expenses.reduce((a,b)=>a+b.amount,0);
+let payTotal=0;
+let result="";
 
-  resultHTML+=`<div class="total">会社売上合計: ¥${companyTotal.toLocaleString()}</div>`;
-  resultHTML+=`<div class="total">ドライバー支払合計: ¥${totalDriverPay.toLocaleString()}</div>`;
-  resultHTML+=`<div class="total">会社利益: ¥${profit.toLocaleString()}</div>`;
+db.drivers.forEach(d=>{
+let g=driverTotal[d.name]||0;
+let royalty=d.royalty?g*0.10:0;
+let admin=d.royalty?10000:0;
+let pay=g-royalty-admin-d.lease;
+payTotal+=pay;
+result+=`<div class="card">${d.name} 支払 ¥${pay.toLocaleString()}</div>`;
+});
 
-  result.innerHTML=resultHTML;
+let profit=gross-payTotal-expenseTotal;
+let tax=profit*0.20;
+let usable=profit-tax;
+
+result+=`<div class="total">会社売上 ¥${gross.toLocaleString()}</div>`;
+result+=`<div class="total">経費 ¥${expenseTotal.toLocaleString()}</div>`;
+result+=`<div class="total red">利益 ¥${profit.toLocaleString()}</div>`;
+result+=`<div class="total">税金20% ¥${tax.toLocaleString()}</div>`;
+result+=`<div class="total green">使っていい ¥${usable.toLocaleString()}</div>`;
+
+calc.innerHTML=result;
+}
+
+function generateStatement(){
+let driver=statementDriver.value;
+let m=month.value;
+let list=db.sales[m]||[];
+let total=0;
+list.forEach(s=>{
+if(s.driver===driver){
+let d=db.drivers.find(x=>x.name===driver);
+total+=s.qty*d.rate;
+}
+});
+statement.innerHTML=`<div class="card">${driver} ${m} 明細<br>総売上 ¥${total.toLocaleString()}</div>`;
+}
+
+function exportData(){
+backupArea.textContent=JSON.stringify(db);
+}
+
+function importData(){
+let file=document.getElementById("importFile").files[0];
+let reader=new FileReader();
+reader.onload=function(e){
+db=JSON.parse(e.target.result);
+save();render();
+};
+reader.readAsText(file);
 }
 
 initMonth();
 render();
-
 </script>
 
 </body>
