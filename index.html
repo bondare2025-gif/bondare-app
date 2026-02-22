@@ -259,37 +259,4 @@ result+=`<div class="total green">使っていい ¥${usable.toLocaleString()}</
 calc.innerHTML=result;
 }
 
-function generateStatement(){
-let driver=statementDriver.value;
-let m=month.value;
-let list=db.sales[m]||[];
-let total=0;
-list.forEach(s=>{
-if(s.driver===driver){
-let d=db.drivers.find(x=>x.name===driver);
-total+=s.qty*d.rate;
-}
-});
-statement.innerHTML=`<div class="card">${driver} ${m} 明細<br>総売上 ¥${total.toLocaleString()}</div>`;
-}
 
-function exportData(){
-backupArea.textContent=JSON.stringify(db);
-}
-
-function importData(){
-let file=document.getElementById("importFile").files[0];
-let reader=new FileReader();
-reader.onload=function(e){
-db=JSON.parse(e.target.result);
-save();render();
-};
-reader.readAsText(file);
-}
-
-initMonth();
-render();
-</script>
-
-</body>
-</html>
