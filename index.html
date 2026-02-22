@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BONDARE管理</title>
+
+<link rel="manifest" href="manifest.json">
+
+<style>
+body{
+  margin:0;
+  font-family:-apple-system,BlinkMacSystemFont;
+  background:#111;
+  color:white;
+}
+header{
+  padding:15px;
+  text-align:center;
+  font-weight:bold;
+  background:#000;
+}
+nav{
+  display:flex;
+  justify-content:space-around;
+  background:#1a1a1a;
+}
+nav button{
+  flex:1;
+  padding:15px;
+  background:#1a1a1a;
+  border:none;
+  color:white;
+  font-size:14px;
+}
+section{
+  display:none;
+  padding:15px;
+}
+section.active{
+  display:block;
+}
+input{
+  width:100%;
+  padding:10px;
+  margin:5px 0;
+  background:#222;
+  border:1px solid #333;
+  color:white;
+}
+button.main{
+  padding:12px;
+  width:100%;
+  background:#0a84ff;
+  border:none;
+  color:white;
+  font-weight:bold;
+  margin-top:10px;
+}
+.card{
+  background:#1c1c1e;
+  padding:10px;
+  margin:10px 0;
+  border-radius:10px;
+}
+</style>
+</head>
+
+<body>
+
+<header>BONDARE管理アプリ</header>
+
+<nav>
+<button onclick="show('sales')">売上</button>
+<button onclick="show('drivers')">ドライバー</button>
+<button onclick="show('profit')">利益</button>
+</nav>
+
+<section id="sales" class="active">
+<h3>売上入力</h3>
+<input type="number" id="salesInput" placeholder="売上金額入力">
+<button class="main" onclick="saveSales()">保存</button>
+<div id="salesList"></div>
+</section>
+
+<section id="drivers">
+<h3>ドライバー追加</h3>
+<input id="driverName" placeholder="名前">
+<input id="driverRate" placeholder="単価">
+<input id="driverLease" placeholder="リース代">
+<button class="main" onclick="addDriver()">追加</button>
+<div id="driverList"></div>
+</section>
+
+<section id="profit">
+<h3>利益確認</h3>
+<div id="profitView"></div>
+</section>
+
+<script>
+
+let data = JSON.parse(localStorage.getItem("bondareData")) || {
+  sales:[],
+  drivers:[{name:"宮内",rate:194,lease:0}]
+};
+
+function save(){
+  localStorage.setItem("bondareData",JSON.stringify(data));
+}
+
+function show(id){
+  document.querySelectorAll("section").forEach(s=>s.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
+}
+
+function saveSales(){
+  let val = document.getElementById("salesInput").value;
+  if(!val)return;
+  data.sales.push(Number(val));
+  document.getElementById("salesInput").value="";
+  save();
+  render();
+}
+
+function addDriver(){
+  let name=document.getElementById("driverName").value;
+  let rate=document.getElementById("driverRate").value;
+  let lease=document.getElementById("driverLease").value;
+  if(!name)return;
+  data.drivers.push({name,rate:Number(rate),lease:Number(lease)});
+  document.getElementById("driverName").value="";
+  document.getElementById("driverRate").value="";
+  document.getElementById("driverLease").value="";
+  save();
+  render();
+}
+
+function render(){
+  let sList="";
+  data.sales.forEach(s=>sList+=`<div class="card">¥${s.toLocaleString()}</div>`);
+  document.getElementById("salesList").innerHTML=sList;
+
+  let dList="";
+  data.drivers.forEach(d=>dList+=`<div class="card">${d.name} | 単価:${d.rate} | リース:${d.lease}</div>`);
+  document.getElementById("driverList").innerHTML=dList;
+
+  let total=data.sales.reduce((a,b)=>a+b,0);
+  let leaseTotal=data.drivers.reduce((a,b)=>a+b.lease,0);
+  let profit=total-leaseTotal;
+  document.getElementById("profitView").innerHTML=
+    `<div class="card">総売上 ¥${total.toLocaleString()}</div>
+     <div class="card">リース合計 ¥${leaseTotal.toLocaleString()}</div>
+     <div class="card">利益 ¥${profit.toLocaleString()}</div>`;
+}
+
+render();
+
+</script>
+
+</body>
+</html>
