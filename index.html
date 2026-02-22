@@ -6,54 +6,15 @@
 <title>BONDARE管理アプリ</title>
 
 <style>
-body{
-  margin:0;
-  font-family:-apple-system, BlinkMacSystemFont;
-  background:#111;
-  color:white;
-}
-header{
-  padding:15px;
-  text-align:center;
-  font-size:20px;
-  font-weight:bold;
-  background:#000;
-}
-.container{
-  padding:20px;
-}
-input{
-  width:100%;
-  padding:12px;
-  margin-top:10px;
-  background:#222;
-  border:none;
-  color:white;
-  font-size:16px;
-}
-button{
-  width:100%;
-  padding:15px;
-  margin-top:15px;
-  background:#007aff;
-  border:none;
-  color:white;
-  font-size:16px;
-}
-.list{
-  margin-top:20px;
-}
-.item{
-  background:#222;
-  padding:10px;
-  margin-top:10px;
-  border-radius:8px;
-}
-.total{
-  margin-top:20px;
-  font-size:18px;
-  font-weight:bold;
-}
+body{margin:0;font-family:-apple-system;background:#111;color:white;}
+header{padding:15px;text-align:center;font-size:20px;font-weight:bold;background:#000;}
+.container{padding:15px;}
+select,input{width:100%;padding:10px;margin-top:8px;background:#222;border:none;color:white;}
+button{width:100%;padding:12px;margin-top:10px;background:#007aff;border:none;color:white;}
+.section{margin-top:25px;}
+.card{background:#222;padding:10px;margin-top:8px;border-radius:8px;}
+.total{margin-top:15px;font-weight:bold;}
+.small{font-size:14px;color:#aaa;}
 </style>
 </head>
 
@@ -63,46 +24,139 @@ button{
 
 <div class="container">
 
-<h2>売上入力</h2>
+<h3>月選択</h3>
+<select id="month"></select>
 
-<input type="number" id="amount" placeholder="売上金額入力">
+<div class="section">
+<h3>ドライバー追加</h3>
+<input id="driverName" placeholder="名前">
+<input type="number" id="driverRate" placeholder="単価">
+<input type="number" id="driverLease" placeholder="リース代">
+<label class="small"><input type="checkbox" id="royaltyCheck"> ロイヤリティ対象（10%）</label>
+<button onclick="addDriver()">追加</button>
+<div id="driverList"></div>
+</div>
 
-<button onclick="saveData()">保存</button>
+<div class="section">
+<h3>売上入力</h3>
+<select id="driverSelect"></select>
+<input type="number" id="amount" placeholder="売上金額">
+<button onclick="saveSale()">保存</button>
+<div id="saleList"></div>
+</div>
 
-<div class="total" id="total"></div>
-
-<div class="list" id="list"></div>
+<div class="section">
+<h3>計算結果</h3>
+<div id="result"></div>
+</div>
 
 </div>
 
 <script>
-function saveData(){
-  const amount = document.getElementById("amount").value;
-  if(amount === "") return;
 
-  let data = JSON.parse(localStorage.getItem("sales")) || [];
-  data.push(Number(amount));
-  localStorage.setItem("sales", JSON.stringify(data));
-  document.getElementById("amount").value = "";
-  loadData();
+let data = JSON.parse(localStorage.getItem("bondare")) || {
+  drivers: [
+    {name:"宮内", rate:194, lease:0, royalty:false}
+  ],
+  sales:{}
+};
+
+function saveStorage(){
+  localStorage.setItem("bondare", JSON.stringify(data));
 }
 
-function loadData(){
-  let data = JSON.parse(localStorage.getItem("sales")) || [];
-  let list = document.getElementById("list");
-  let total = 0;
+function initMonth(){
+  const select = document.getElementById("month");
+  const now = new Date();
+  const year = now.getFullYear();
+  for(let i=1;i<=12;i++){
+    const option = document.createElement("option");
+    option.value = year+"-"+i;
+    option.text = year+"年"+i+"月";
+    select.appendChild(option);
+  }
+  select.addEventListener("change", render);
+}
 
-  list.innerHTML = "";
+function addDriver(){
+  const name=document.getElementById("driverName").value;
+  const rate=Number(document.getElementById("driverRate").value);
+  const lease=Number(document.getElementById("driverLease").value);
+  const royalty=document.getElementById("royaltyCheck").checked;
+  if(!name)return;
+  data.drivers.push({name,rate,lease,royalty});
+  saveStorage();
+  render();
+}
 
-  data.forEach(item=>{
-    total += Number(item);
-    list.innerHTML += "<div class='item'>¥"+item.toLocaleString()+"</div>";
+function saveSale(){
+  const month=document.getElementById("month").value;
+  const driver=document.getElementById("driverSelect").value;
+  const amount=Number(document.getElementById("amount").value);
+  if(!amount)return;
+
+  if(!data.sales[month]) data.sales[month]=[];
+  data.sales[month].push({driver,amount});
+  saveStorage();
+  document.getElementById("amount").value="";
+  render();
+}
+
+function render(){
+  const month=document.getElementById("month").value;
+  const driverList=document.getElementById("driverList");
+  const driverSelect=document.getElementById("driverSelect");
+  const saleList=document.getElementById("saleList");
+  const result=document.getElementById("result");
+
+  driverList.innerHTML="";
+  driverSelect.innerHTML="";
+  data.drivers.forEach(d=>{
+    driverList.innerHTML+=`<div class="card">${d.name} 単価:${d.rate} リース:${d.lease} ${d.royalty?"(10%対象)":""}</div>`;
+    driverSelect.innerHTML+=`<option value="${d.name}">${d.name}</option>`;
   });
 
-  document.getElementById("total").innerText = "合計: ¥" + total.toLocaleString();
+  let monthSales=data.sales[month]||[];
+  saleList.innerHTML="";
+  let companyTotal=0;
+  let driverTotals={};
+
+  monthSales.forEach(s=>{
+    saleList.innerHTML+=`<div class="card">${s.driver} ¥${s.amount.toLocaleString()}</div>`;
+    companyTotal+=s.amount;
+    if(!driverTotals[s.driver]) driverTotals[s.driver]=0;
+    driverTotals[s.driver]+=s.amount;
+  });
+
+  let resultHTML="";
+  let totalDriverPay=0;
+
+  data.drivers.forEach(d=>{
+    let gross=driverTotals[d.name]||0;
+    let royalty=d.royalty? gross*0.10 : 0;
+    let pay=gross - royalty - d.lease;
+    totalDriverPay+=pay;
+    resultHTML+=`<div class="card">
+    ${d.name}<br>
+    売上: ¥${gross.toLocaleString()}<br>
+    ロイヤリティ: ¥${royalty.toLocaleString()}<br>
+    リース: ¥${d.lease.toLocaleString()}<br>
+    支払額: ¥${pay.toLocaleString()}
+    </div>`;
+  });
+
+  let profit=companyTotal-totalDriverPay;
+
+  resultHTML+=`<div class="total">会社売上合計: ¥${companyTotal.toLocaleString()}</div>`;
+  resultHTML+=`<div class="total">ドライバー支払合計: ¥${totalDriverPay.toLocaleString()}</div>`;
+  resultHTML+=`<div class="total">会社利益: ¥${profit.toLocaleString()}</div>`;
+
+  result.innerHTML=resultHTML;
 }
 
-loadData();
+initMonth();
+render();
+
 </script>
 
 </body>
